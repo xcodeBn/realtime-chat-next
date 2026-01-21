@@ -2,6 +2,9 @@
 
 import {nanoid} from "nanoid";
 import {useEffect, useState} from "react";
+import {useMutation} from "@tanstack/react-query";
+import {client} from "@/lib/client";
+import { useRouter, useSearchParams } from "next/navigation"
 
 const generateUsername = () => {
     const adjectives = ["swift", "silent", "fierce", "brave", "clever"];
@@ -9,7 +12,7 @@ const generateUsername = () => {
     const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
     const number = Math.floor(100 + Math.random() * 900);
-    return `${adjective}_${noun}${nanoid(7)}`;
+    return `${adjective}_${noun}${nanoid(7)}_${number}`;
 }
 const STORAGE_KEY = "chat_username";
 
@@ -17,7 +20,17 @@ const STORAGE_KEY = "chat_username";
 export default function Home() {
 
     const [username,setUserName] = useState("");
-
+    const router = useRouter();
+    const {mutate: createRoom} = useMutation({
+        mutationFn: async () => {
+            // Create a new secure chat room
+            const res = await client.api.room.create.post();
+            if(res.status == 200){
+                router?.push(`/room/${res.data?.roomId}`);
+            }
+        }
+        
+    })
     useEffect(() => {
         const main = () => {
             const storedUsername = localStorage.getItem(STORAGE_KEY);
@@ -53,7 +66,7 @@ export default function Home() {
                               </div>
                           </div>
                       </div>
-                      <button className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
+                      <button onClick={()=>{createRoom()}} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
                           Create SECURE ROOM
                       </button>
                   </div>
