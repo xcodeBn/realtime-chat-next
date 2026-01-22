@@ -2,9 +2,10 @@
 
 import {useParams} from "next/navigation";
 import {useEffect, useRef, useState} from "react";
-import {useMutation} from "@tanstack/react-query";
+import {useMutation, useQuery} from "@tanstack/react-query";
 import {client} from "@/lib/client";
 import {useUsername} from "@/hooks/use-username";
+import { format } from "date-fns";
 
 function formatTimeRemaining(seconds: number) {
     const mins = Math.floor(seconds / 60);
@@ -20,6 +21,14 @@ const Page = () => {
     const [input,setInput] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     const {username} = useUsername()
+
+    const { data: messages} = useQuery({
+        queryKey:["messages", roomId],
+        queryFn: async () => {
+            const room = await client.api.messages.get({query: {roomId}});
+            return room.data;
+
+        }})
 
     const {mutate: sendMessage,isPending} = useMutation({
         mutationFn: async ({text}:{
@@ -76,6 +85,38 @@ const Page = () => {
                     DESTROY NOW
                 </button>
             </header>
+            {/* No Messages */}
+            {messages?.messages.length === 0 && (
+                <div className={"flex items-center justify-center h-full"}>
+                    <p className={"text-zinc-600 text-sm font-mono"}>No messages yet. Start the conversation!</p>
+                </div>
+            )}
+
+            {/*Yes Messages kkkk*/}
+            {messages?.messages.map((msg)=>{
+                return <div key={msg.id} className={"flex flex-col items-start"}>
+                    <div className={"max-w-[80%] group "}>
+                        <div className={"flex items-baseline gap-3 mb-1"}>
+                            <span className={
+                                `text-xs font-bold pl-2 ${msg.sender===username ? "text-green-500" : "text-blue-500"}`}>
+                                {msg.sender === username ? `You:` : `${msg.sender}:`}
+                            </span>
+
+                            <span className={"text-[10px] text-zinc-600"}>
+                                {format(msg.timeStamp,"HH:mm")}
+                            </span>
+
+                            <p className={"text-sm text-zinc-300 leading-relaxed break-all"}>
+                                {msg.text}
+                            </p>
+
+                        </div>
+                </div>
+                </div>
+            })}
+
+
+
             <div className={"flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin"}>
                 {/* Chat messages will go here */}
             </div>
