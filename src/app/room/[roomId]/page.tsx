@@ -2,6 +2,9 @@
 
 import {useParams} from "next/navigation";
 import {useEffect, useRef, useState} from "react";
+import {useMutation} from "@tanstack/react-query";
+import {client} from "@/lib/client";
+import {useUsername} from "@/hooks/use-username";
 
 function formatTimeRemaining(seconds: number) {
     const mins = Math.floor(seconds / 60);
@@ -16,8 +19,17 @@ const Page = () => {
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [input,setInput] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
+    const {username} = useUsername()
 
-
+    const {mutate: sendMessage} = useMutation({
+        mutationFn: async ({text}:{
+            text: string
+        }) => {
+            await client.api.messages.post({
+                sender: username, text
+            }, {query: {roomId}})
+        }
+    })
     const  copyLink = () => {
         const url  = window.location.href;
         navigator.clipboard.writeText(url)
@@ -79,6 +91,7 @@ const Page = () => {
                         onChange={(e)=>{setInput(e.target.value)}}
                         onKeyDown={(e)=>{
                             if(e.key==="Enter" && input.trim()){
+                                sendMessage({text: input});
                                 inputRef.current?.focus();
                                 setInput("");
                             }
@@ -89,7 +102,12 @@ const Page = () => {
                     />
 
                 </div>
-                <button className={"bg-zinc-800 text-zinc-400 px-6 text-sm font-bold hover:text-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"}>
+                <button onClick={()=>{
+                    sendMessage({text: input});
+                    setInput("");
+                    inputRef.current?.focus();
+                }}
+                    className={"bg-zinc-800 text-zinc-400 px-6 text-sm font-bold hover:text-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"}>
                     Send
                 </button>
                 </div>

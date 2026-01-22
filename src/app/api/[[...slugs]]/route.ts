@@ -5,6 +5,7 @@ import {redis} from "@/lib/redis";
 import {authMiddleware} from "@/app/api/[[...slugs]]/auth";
 import {z} from "zod";
 import {awaitExpression} from "@babel/types";
+import {Message, realtime} from "@/lib/realtime";
 
 const ROOM_TTL_SECONDS = 60 * 10 // 1 hour
 
@@ -28,6 +29,26 @@ const messages = new Elysia({prefix:"/messages"}).use(authMiddleware).post("/", 
     if(!roomExists){
         throw new Error("Room does not exist")
     }
+    const message:Message = {
+        id: nanoid(),
+        sender,
+        text,
+        timeStamp: Date.now(),
+        roomId: auth.roomId
+    }
+
+    // add message to history
+    await redis.rpush(`messages:${auth.roomId}`,{
+        ...message, token:auth.token
+    })
+    await realtime.channel(auth.roomId).emit("chat.message",message)
+
+    // house keeping
+    const remaining  = await redis.ttl(`meta:${auth.roomId}`)
+
+    await redis.expire(`messages:${auth.roomId}`,remaining)
+    await redis.expire(`history:${auth.roomId}`, remaining)
+    await redis.expire(`${auth.roomId}`, remaining)
 
 },{
     query: z.object({

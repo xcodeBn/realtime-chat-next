@@ -5,21 +5,13 @@ import {useEffect, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {client} from "@/lib/client";
 import { useRouter, useSearchParams } from "next/navigation"
+import {useUsername} from "@/hooks/use-username";
 
-const generateUsername = () => {
-    const adjectives = ["swift", "silent", "fierce", "brave", "clever"];
-    const nouns = ["lion", "eagle", "shark", "wolf", "tiger"];
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const number = Math.floor(100 + Math.random() * 900);
-    return `${adjective}_${noun}${nanoid(7)}_${number}`;
-}
-const STORAGE_KEY = "chat_username";
 
 
 export default function Home() {
 
-    const [username,setUserName] = useState("");
+    const {username} = useUsername()
     const router = useRouter();
     const {mutate: createRoom} = useMutation({
         mutationFn: async () => {
@@ -31,19 +23,7 @@ export default function Home() {
         }
         
     })
-    useEffect(() => {
-        const main = () => {
-            const storedUsername = localStorage.getItem(STORAGE_KEY);
-            if (!storedUsername) {
-                const generated = generateUsername();
-                localStorage.setItem(STORAGE_KEY, generated);
-                setUserName(generated);
-                return;
-            }
-            setUserName(storedUsername);
-        }
-        main()
-    }, []);
+
     return (<main className={"flex min-h-screen flex-col items-center justify-center p-4"}>
           <div className={"w-full max-w-md space-y-8"}>
               <div className={"text-center space-y-2"}>
