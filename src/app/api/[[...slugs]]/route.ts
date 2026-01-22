@@ -6,6 +6,7 @@ import {authMiddleware} from "@/app/api/[[...slugs]]/auth";
 import {z} from "zod";
 import {awaitExpression} from "@babel/types";
 import {Message, realtime} from "@/lib/realtime";
+import {queue} from "sharp";
 
 const ROOM_TTL_SECONDS = 60 * 10 // 1 hour
 
@@ -24,6 +25,20 @@ const rooms = new Elysia({prefix: "/room"})
         const ttl = await redis.ttl(`meta:${auth.roomId}`)
         return {ttl: ttl>0 ? ttl : 0}
     },{query:z.object({roomId:z.string()})})
+    .delete("/",async ({auth})=>{
+
+         await Promise.all(
+             [
+                 redis.del(`meta:${auth.roomId}`),
+                 redis.del(`messages:${auth.roomId}`),
+                 redis.del(`connections:${auth.roomId}`)
+             ]
+         )
+        await realtime.channel(auth.roomId).emit("chat.destroy",{
+            isDestroyed:true
+        })
+      //  await redis.del(`history:${auth.roomId}`)
+    }, {query:z.object({roomId:z.string()})})
 
 const messages = new Elysia({prefix:"/messages"}).use(authMiddleware).post("/", async ({body,auth})=>{
     const {sender,text} = body
