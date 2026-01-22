@@ -21,7 +21,7 @@ const Page = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const {username} = useUsername()
 
-    const {mutate: sendMessage} = useMutation({
+    const {mutate: sendMessage,isPending} = useMutation({
         mutationFn: async ({text}:{
             text: string
         }) => {
@@ -107,6 +107,8 @@ const Page = () => {
                     setInput("");
                     inputRef.current?.focus();
                 }}
+                        disabled={!input.trim() || isPending}
+
                     className={"bg-zinc-800 text-zinc-400 px-6 text-sm font-bold hover:text-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"}>
                     Send
                 </button>
