@@ -7,6 +7,8 @@ import {client} from "@/lib/client";
 import {useUsername} from "@/hooks/use-username";
 import { format } from "date-fns";
 import {useRealtime} from "@/lib/realtime_client";
+import { encrypt } from "@/lib/crypto";
+import { DecryptedMessage } from "@/components/decrypted-message";
 
 function formatTimeRemaining(seconds: number) {
     const mins = Math.floor(seconds / 60);
@@ -20,9 +22,19 @@ const Page = () => {
     const [copyStatus, setCopyStatus] = useState<"copy" | "copied!">("copy");
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [input,setInput] = useState("");
+    const [secretKey, setSecretKey] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const {username} = useUsername()
     const router = useRouter()
+
+    useEffect(() => {
+        // Extract key from URL hash
+        const hash = window.location.hash;
+        if (hash && hash.length > 1) {
+            setSecretKey(hash.slice(1));
+        }
+    }, []);
+
     const {data:ttlData} = useQuery({
         queryKey: ["ttl",roomId],
         queryFn: async () => {
@@ -91,8 +103,12 @@ const Page = () => {
         mutationFn: async ({text}:{
             text: string
         }) => {
+            let content = text;
+            if (secretKey) {
+                content = await encrypt(text, secretKey);
+            }
             await client.api.messages.post({
-                sender: username, text
+                sender: username, text: content
             }, {query: {roomId}})
         }
     })
@@ -142,41 +158,38 @@ const Page = () => {
                     DESTROY NOW
                 </button>
             </header>
-            {/* No Messages */}
-            {messages?.messages.length === 0 && (
-                <div className={"flex items-center justify-center h-full"}>
-                    <p className={"text-zinc-600 text-sm font-mono"}>No messages yet. Start the conversation!</p>
-                </div>
-            )}
+            
+            <div className={"flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin flex flex-col"}>
+                 {/* No Messages */}
+                {messages?.messages.length === 0 && (
+                    <div className={"flex items-center justify-center flex-1"}>
+                        <p className={"text-zinc-600 text-sm font-mono"}>No messages yet. Start the conversation!</p>
+                    </div>
+                )}
 
-            {/*Yes Messages kkkk*/}
-            {messages?.messages.map((msg)=>{
-                return <div key={msg.id} className={"flex flex-col items-start"}>
-                    <div className={"max-w-[80%] group "}>
-                        <div className={"flex items-baseline gap-3 mb-1"}>
-                            <span className={
-                                `text-xs font-bold pl-2 ${msg.sender===username ? "text-green-500" : "text-blue-500"}`}>
-                                {msg.sender === username ? `You:` : `${msg.sender}:`}
-                            </span>
+                {messages?.messages.map((msg)=>{
+                    return <div key={msg.id} className={"flex flex-col items-start"}>
+                        <div className={"max-w-[80%] group "}>
+                            <div className={"flex items-baseline gap-3 mb-1"}>
+                                <span className={
+                                    `text-xs font-bold pl-2 ${msg.sender===username ? "text-green-500" : "text-blue-500"}`}>
+                                    {msg.sender === username ? `You:` : `${msg.sender}:`}
+                                </span>
 
-                            <span className={"text-[10px] text-zinc-600"}>
-                                {format(msg.timeStamp,"HH:mm")}
-                            </span>
+                                <span className={"text-[10px] text-zinc-600"}>
+                                    {format(msg.timeStamp,"HH:mm")}
+                                </span>
 
-                            <p className={"text-sm text-zinc-300 leading-relaxed break-all"}>
-                                {msg.text}
-                            </p>
+                                <p className={"text-sm text-zinc-300 leading-relaxed break-all"}>
+                                    <DecryptedMessage text={msg.text} secretKey={secretKey} />
+                                </p>
 
-                        </div>
-                </div>
-                </div>
-            })}
-
-
-
-            <div className={"flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin"}>
-                {/* Chat messages will go here */}
+                            </div>
+                    </div>
+                    </div>
+                })}
             </div>
+            
             <div className={"p-4 border-t border-zinc-800 bg-zinc-900/30"}>
                 <div className={"flex flex-row"}>
 

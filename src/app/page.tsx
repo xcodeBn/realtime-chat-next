@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {useUsername} from "@/hooks/use-username";
 
 
+import {generateKey} from "@/lib/crypto";
+
 const Page = () =>{
     return <Suspense><Home></Home></Suspense>
 }
@@ -22,7 +24,8 @@ export function Home() {
             // Create a new secure chat room
             const res = await client.api.room.create.post();
             if(res.status == 200){
-                router?.push(`/room/${res.data?.roomId}`);
+                const key = await generateKey();
+                router?.push(`/room/${res.data?.roomId}#${key}`);
             }
         }
         
