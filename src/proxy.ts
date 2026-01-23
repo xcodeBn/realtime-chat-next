@@ -9,7 +9,7 @@ export async function proxy(req:NextRequest){
         return NextResponse.redirect(new URL("/",req.url));
     }
     const roomId = roomMatch[1];
-    const meta = await redis.hgetall<{connected:string[],createdAt:number, capacity?:number}>(`meta:${roomId}`)
+    const meta = await redis.hgetall<{connected:string[],createdAt:number, capacity?:number, passwordHash?: string}>(`meta:${roomId}`)
 
     if(!meta){
         return NextResponse.redirect(new URL("/?error=room-not-found",req.url));
@@ -18,6 +18,17 @@ export async function proxy(req:NextRequest){
     const existingToken = req.cookies.get("x-auth-token")?.value;
     if(existingToken && meta.connected.includes(existingToken)){
         return NextResponse.next();
+    }
+    
+    // If room is password protected and user is not connected, redirect to login
+    // BUT we must allow the login page itself to be accessed.
+    // The matcher is /room/:path*, so /room/123/login is also intercepted.
+    if(req.nextUrl.pathname.endsWith("/login")) {
+         return NextResponse.next();
+    }
+
+    if (meta.passwordHash) {
+        return NextResponse.redirect(new URL(`/room/${roomId}/login`, req.url));
     }
     
     const roomCapacity = meta.capacity || 2;

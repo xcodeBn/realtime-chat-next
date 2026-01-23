@@ -7,27 +7,84 @@ import {z} from "zod";
 import {awaitExpression} from "@babel/types";
 import {Message, realtime} from "@/lib/realtime";
 import {queue} from "sharp";
+import crypto from "node:crypto";
 
 const ROOM_TTL_SECONDS = 60 * 10 // 1 hour
 
+function hashPassword(password: string): string {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
+
 const rooms = new Elysia({prefix: "/room"})
     .post("/create", async ({body})=>{
-        const {capacity} = body
+        const {capacity, password} = body
         const roomId = nanoid()
-        await redis.hset(`meta:${roomId}`,{
+        
+        const roomData: Record<string, any> = {
             connected: [],
             createdAt: Date.now(),
             capacity: capacity
-        })
+        };
+
+        if (password && password.trim().length > 0) {
+            roomData.passwordHash = hashPassword(password);
+        }
+
+        await redis.hset(`meta:${roomId}`, roomData)
+        
         console.log("Create a new room")
         await redis.expire(`meta:${roomId}`,ROOM_TTL_SECONDS)
 
         return {roomId}
     }, {
         body: t.Object({
-            capacity: t.Number({default:2, minimum:2, maximum:10})
+            capacity: t.Number({default:2, minimum:2, maximum:10}),
+            password: t.Optional(t.String())
         })
-    }).use(authMiddleware).get("/ttl", async ({auth})=>{
+    })
+    .post("/verify", async ({body, cookie: { "x-auth-token": tokenCookie }}) => {
+        const {roomId, password} = body;
+        const meta = await redis.hgetall<{connected:string[], capacity: number, passwordHash: string}>(`meta:${roomId}`);
+        
+        if (!meta) throw new Error("Room not found");
+        
+        // Check password if it exists
+        if (meta.passwordHash) {
+             const providedHash = hashPassword(password);
+             if (meta.passwordHash !== providedHash) {
+                 throw new Error("Invalid password");
+             }
+        }
+        
+        // Check capacity
+        const capacity = meta.capacity || 2;
+        if (meta.connected.length >= capacity) {
+            throw new Error("Room is full");
+        }
+        
+        // Generate Token and Join
+        const token = nanoid();
+        
+        tokenCookie.set({
+            value: token,
+            path: "/",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict"
+        });
+        
+        await redis.hset(`meta:${roomId}`, {
+            connected: [...meta.connected, token]
+        });
+        
+        return { valid: true };
+    }, {
+        body: t.Object({
+            roomId: t.String(),
+            password: t.String()
+        })
+    })
+    .use(authMiddleware).get("/ttl", async ({auth})=>{
         const ttl = await redis.ttl(`meta:${auth.roomId}`)
         return {ttl: ttl>0 ? ttl : 0}
     },{query:z.object({roomId:z.string()})})

@@ -20,12 +20,14 @@ export function Home() {
     const {username} = useUsername()
     const router = useRouter();
     const [capacity, setCapacity] = useState(2);
+    const [password, setPassword] = useState("");
     
     const {mutate: createRoom} = useMutation({
         mutationFn: async () => {
             // Create a new secure chat room
             const res = await client.api.room.create.post({
-                capacity
+                capacity,
+                password
             });
             if(res.status == 200){
                 const key = await generateKey();
@@ -93,6 +95,19 @@ export function Home() {
                                   </button>
                               ))}
                           </div>
+                      </div>
+
+                      <div className={"space-y-2"}>
+                          <label className={"flex items-center text-zinc-500"}>
+                              Password (Optional)
+                          </label>
+                          <input 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Leave empty for open room"
+                                type="password"
+                                className="w-full bg-black border border-zinc-800 focus:border-green-900 focus:outline-none text-zinc-100 p-3 text-sm placeholder:text-zinc-700"
+                          />
                       </div>
 
                       <button onClick={()=>{createRoom()}} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
