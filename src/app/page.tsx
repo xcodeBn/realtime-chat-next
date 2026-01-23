@@ -1,6 +1,6 @@
 "use client"
 
-import {Suspense, useEffect, useState} from "react";
+import {Suspense, useState} from "react";
 import {useMutation} from "@tanstack/react-query";
 import {client} from "@/lib/client";
 import { useRouter, useSearchParams } from "next/navigation"
@@ -19,10 +19,14 @@ export function Home() {
 
     const {username} = useUsername()
     const router = useRouter();
+    const [capacity, setCapacity] = useState(2);
+    
     const {mutate: createRoom} = useMutation({
         mutationFn: async () => {
             // Create a new secure chat room
-            const res = await client.api.room.create.post();
+            const res = await client.api.room.create.post({
+                capacity
+            });
             if(res.status == 200){
                 const key = await generateKey();
                 router?.push(`/room/${res.data?.roomId}#${key}`);
@@ -69,6 +73,28 @@ export function Home() {
                               </div>
                           </div>
                       </div>
+                      
+                      <div className={"space-y-2"}>
+                          <label className={"flex items-center text-zinc-500"}>
+                              Max Participants
+                          </label>
+                          <div className={"grid grid-cols-3 gap-2"}>
+                              {[2, 3, 4].map((num) => (
+                                  <button
+                                      key={num}
+                                      onClick={() => setCapacity(num)}
+                                      className={`p-3 text-sm font-bold border transition-all ${
+                                          capacity === num
+                                              ? "bg-zinc-100 text-black border-zinc-100"
+                                              : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                      }`}
+                                  >
+                                      {num}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
                       <button onClick={()=>{createRoom()}} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
                           Create SECURE ROOM
                       </button>

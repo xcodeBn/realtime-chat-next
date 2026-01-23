@@ -11,16 +11,22 @@ import {queue} from "sharp";
 const ROOM_TTL_SECONDS = 60 * 10 // 1 hour
 
 const rooms = new Elysia({prefix: "/room"})
-    .post("/create", async ()=>{
+    .post("/create", async ({body})=>{
+        const {capacity} = body
         const roomId = nanoid()
         await redis.hset(`meta:${roomId}`,{
             connected: [],
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            capacity: capacity
         })
         console.log("Create a new room")
         await redis.expire(`meta:${roomId}`,ROOM_TTL_SECONDS)
 
         return {roomId}
+    }, {
+        body: t.Object({
+            capacity: t.Number({default:2, minimum:2, maximum:10})
+        })
     }).use(authMiddleware).get("/ttl", async ({auth})=>{
         const ttl = await redis.ttl(`meta:${auth.roomId}`)
         return {ttl: ttl>0 ? ttl : 0}

@@ -9,7 +9,7 @@ export async function proxy(req:NextRequest){
         return NextResponse.redirect(new URL("/",req.url));
     }
     const roomId = roomMatch[1];
-    const meta = await redis.hgetall<{connected:string[],createdAt:number}>(`meta:${roomId}`)
+    const meta = await redis.hgetall<{connected:string[],createdAt:number, capacity?:number}>(`meta:${roomId}`)
 
     if(!meta){
         return NextResponse.redirect(new URL("/?error=room-not-found",req.url));
@@ -19,7 +19,9 @@ export async function proxy(req:NextRequest){
     if(existingToken && meta.connected.includes(existingToken)){
         return NextResponse.next();
     }
-    if(meta.connected.length>= 2){
+    
+    const roomCapacity = meta.capacity || 2;
+    if(meta.connected.length>= roomCapacity){
         return NextResponse.redirect(new URL("/?error=room-full",req.url));
     }
 
