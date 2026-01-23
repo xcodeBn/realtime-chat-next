@@ -2,7 +2,7 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useEffect, useRef, useState} from "react";
-import {useMutation, useQuery} from "@tanstack/react-query";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {client} from "@/lib/client";
 import {useUsername} from "@/hooks/use-username";
 import { format } from "date-fns";
@@ -26,6 +26,7 @@ const Page = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const {username} = useUsername()
     const router = useRouter()
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         // Extract key from URL hash
@@ -110,6 +111,39 @@ const Page = () => {
             await client.api.messages.post({
                 sender: username, text: content
             }, {query: {roomId}})
+        },
+        onMutate: async ({text}) => {
+             await queryClient.cancelQueries({ queryKey: ["messages", roomId] });
+             const previousMessages = queryClient.getQueryData(["messages", roomId]);
+             
+             let content = text;
+             if (secretKey) {
+                content = await encrypt(text, secretKey);
+             }
+
+             queryClient.setQueryData(["messages", roomId], (old: any) => {
+                 const newMessage = {
+                     id: Math.random().toString(), // Temp ID
+                     sender: username,
+                     text: content,
+                     timeStamp: Date.now(),
+                     roomId: roomId,
+                     token: "optimistic" // specific marker if needed
+                 };
+                 
+                 return {
+                     ...old,
+                     messages: [...(old?.messages || []), newMessage]
+                 };
+             });
+             
+             return { previousMessages };
+        },
+        onError: (err, newTodo, context) => {
+            queryClient.setQueryData(["messages", roomId], context?.previousMessages);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["messages", roomId] });
         }
     })
     const  copyLink = () => {
