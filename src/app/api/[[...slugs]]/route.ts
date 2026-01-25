@@ -1,7 +1,7 @@
 // server.ts
 import { Elysia, t } from 'elysia'
 import {nanoid} from "nanoid";
-import {redis} from "@/lib/redis";
+import {getRedis} from "@/lib/redis";
 import {authMiddleware} from "@/app/api/[[...slugs]]/auth";
 import {z} from "zod";
 import {awaitExpression} from "@babel/types";
@@ -16,7 +16,7 @@ function hashPassword(password: string): string {
 }
 
 const rooms = new Elysia({prefix: "/room"})
-    .post("/create", async ({body})=>{
+    .post("/create", async ({body, request})=>{
         const {capacity, password} = body
         const roomId = nanoid()
         
@@ -29,6 +29,8 @@ const rooms = new Elysia({prefix: "/room"})
         if (password && password.trim().length > 0) {
             roomData.passwordHash = hashPassword(password);
         }
+        
+        const redis = getRedis(request.headers);
 
         await redis.hset(`meta:${roomId}`, roomData)
         
@@ -42,8 +44,9 @@ const rooms = new Elysia({prefix: "/room"})
             password: t.Optional(t.String())
         })
     })
-    .post("/verify", async ({body, cookie: { "x-auth-token": tokenCookie }}) => {
+    .post("/verify", async ({body, cookie: { "x-auth-token": tokenCookie }, request}) => {
         const {roomId, password} = body;
+        const redis = getRedis(request.headers);
         const meta = await redis.hgetall<{connected:string[], capacity: number, passwordHash: string}>(`meta:${roomId}`);
         
         if (!meta) throw new Error("Room not found");
@@ -84,15 +87,18 @@ const rooms = new Elysia({prefix: "/room"})
             password: t.String()
         })
     })
-    .use(authMiddleware).get("/ttl", async ({auth})=>{
+    .use(authMiddleware).get("/ttl", async ({auth, request})=>{
+        const redis = getRedis(request.headers);
         const ttl = await redis.ttl(`meta:${auth.roomId}`)
         return {ttl: ttl>0 ? ttl : 0}
     },{query:z.object({roomId:z.string()})})
-    .delete("/",async ({auth})=>{
+    .delete("/",async ({auth, request})=>{
 
         await realtime.channel(auth.roomId).emit("chat.destroy",{
             isDestroyed:true
         })
+        
+         const redis = getRedis(request.headers);
 
          await Promise.all(
              [
@@ -105,8 +111,9 @@ const rooms = new Elysia({prefix: "/room"})
       //  await redis.del(`history:${auth.roomId}`)
     }, {query:z.object({roomId:z.string()})})
 
-const messages = new Elysia({prefix:"/messages"}).use(authMiddleware).post("/", async ({body,auth})=>{
+const messages = new Elysia({prefix:"/messages"}).use(authMiddleware).post("/", async ({body,auth, request})=>{
     const {sender,text} = body
+    const redis = getRedis(request.headers);
     const roomExists = await redis.exists
     (`meta:${auth.roomId}`)
     if(!roomExists){
@@ -141,7 +148,8 @@ const messages = new Elysia({prefix:"/messages"}).use(authMiddleware).post("/", 
         sender: z.string().max(100),
         text: z.string().max(1000)
     })
-}).get("/", async ({auth})=>{
+}).get("/", async ({auth, request})=>{
+    const redis = getRedis(request.headers);
     const messages = await redis.lrange<Message>(`messages:${auth.roomId}`,0,-1)
 
     return {

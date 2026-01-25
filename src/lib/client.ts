@@ -12,7 +12,23 @@ function getBaseUrl() {
     return 'http://localhost:3000';
 }
 
-export const client = treaty<App>(getBaseUrl())
+function getHeaders() {
+    if (typeof window !== 'undefined') {
+        const url = localStorage.getItem("custom_redis_url");
+        const token = localStorage.getItem("custom_redis_token");
+        if (url && token) {
+            return {
+                'x-custom-redis-url': url,
+                'x-custom-redis-token': token
+            };
+        }
+    }
+    return {};
+}
+
+export const client = treaty<App>(getBaseUrl(), {
+    headers: getHeaders()
+})
 
 
 

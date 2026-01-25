@@ -116,6 +116,15 @@ export function Home() {
                       <button onClick={()=>{createRoom()}} disabled={isPending} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
                           {isPending ? "CREATING SECURE ROOM..." : "Create SECURE ROOM"}
                       </button>
+                      
+                      <div className="pt-4 text-center border-t border-zinc-800">
+                        <button 
+                            onClick={() => router.push("/custom-db")}
+                            className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors uppercase tracking-widest"
+                        >
+                            Advanced: Use Custom Database
+                        </button>
+                      </div>
                   </div>
               </div>
           </div>
