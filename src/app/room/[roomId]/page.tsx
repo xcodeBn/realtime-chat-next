@@ -43,168 +43,178 @@ const Page = () => {
             return res.data;
         }
     })
-    const { data: messages,refetch} = useQuery({
-        queryKey:["messages", roomId],
-        queryFn: async () => {
-            const room = await client.api.messages.get({query: {roomId}});
-            return room.data;
-
-        }})
-
-      useRealtime(
-        {
-            channels: [roomId],
-            events: ["chat.message","chat.destroy"],
-            onData: ({event}) =>{
-                if(event === "chat.message"){
-                    refetch()
-                }
-
-                if(event === "chat.destroy"){
-                    router.push("/?destroyed=true")
+        const { data: messages,refetch, isLoading} = useQuery({
+            queryKey:["messages", roomId],
+            queryFn: async () => {
+                const room = await client.api.messages.get({query: {roomId}});
+                return room.data;
+    
+            }})
+    
+          useRealtime(
+            {
+                channels: [roomId],
+                events: ["chat.message","chat.destroy"],
+                onData: ({event}) =>{
+                    if(event === "chat.message"){
+                        refetch()
+                    }
+    
+                    if(event === "chat.destroy"){
+                        router.push("/?destroyed=true")
+                    }
                 }
             }
-        }
-    )
-
-
-    const {mutate: destroyRoom} = useMutation({
-        mutationFn: async () => {
-            await client.api.room.delete(null,{query: {roomId}});
-        }
-    })
-
-    useEffect( () => {
-        if(ttlData?.ttl !== undefined){
-            setTimeRemaining(ttlData.ttl);
-        }
-    }, [ttlData]);
-
-    useEffect(() => {
-        if(timeRemaining===null || timeRemaining <0) return
-        if(timeRemaining===0){
-            router.push("/?destroyed=true")
-            return
-        }
-        const interval  = setInterval(() => {
-            setTimeRemaining((prev) => {
-                if(prev === null || prev<=1)
-                {
-                    clearInterval(interval)
-                    return 0;
-                }
-                return prev - 1
-            });
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [timeRemaining,router]);
-
-
-    const {mutate: sendMessage,isPending} = useMutation({
-        mutationFn: async ({text}:{
-            text: string
-        }) => {
-            let content = text;
-            if (secretKey) {
-                content = await encrypt(text, secretKey);
+        )
+    
+    
+        const {mutate: destroyRoom} = useMutation({
+            mutationFn: async () => {
+                await client.api.room.delete(null,{query: {roomId}});
             }
-            await client.api.messages.post({
-                sender: username, text: content
-            }, {query: {roomId}})
-        },
-        onMutate: async ({text}) => {
-             await queryClient.cancelQueries({ queryKey: ["messages", roomId] });
-             const previousMessages = queryClient.getQueryData(["messages", roomId]);
-             
-             let content = text;
-             if (secretKey) {
-                content = await encrypt(text, secretKey);
-             }
-
-             queryClient.setQueryData(["messages", roomId], (old: any) => {
-                 const newMessage = {
-                     id: Math.random().toString(), // Temp ID
-                     sender: username,
-                     text: content,
-                     timeStamp: Date.now(),
-                     roomId: roomId,
-                     token: "optimistic" // specific marker if needed
-                 };
+        })
+    
+        useEffect( () => {
+            if(ttlData?.ttl !== undefined){
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setTimeRemaining(ttlData.ttl);
+            }
+        }, [ttlData]);
+    
+        useEffect(() => {
+            if(timeRemaining===null || timeRemaining <0) return
+            if(timeRemaining===0){
+                router.push("/?destroyed=true")
+                return
+            }
+            const interval  = setInterval(() => {
+                setTimeRemaining((prev) => {
+                    if(prev === null || prev<=1)
+                    {
+                        clearInterval(interval)
+                        return 0;
+                    }
+                    return prev - 1
+                });
+            }, 1000);
+            return () => clearInterval(interval);
+        }, [timeRemaining,router]);
+    
+    
+        const {mutate: sendMessage,isPending} = useMutation({
+            mutationFn: async ({text}:{
+                text: string
+            }) => {
+                let content = text;
+                if (secretKey) {
+                    content = await encrypt(text, secretKey);
+                }
+                await client.api.messages.post({
+                    sender: username, text: content
+                }, {query: {roomId}})
+            },
+            onMutate: async ({text}) => {
+                 await queryClient.cancelQueries({ queryKey: ["messages", roomId] });
+                 const previousMessages = queryClient.getQueryData(["messages", roomId]);
                  
-                 return {
-                     ...old,
-                     messages: [...(old?.messages || []), newMessage]
-                 };
-             });
-             
-             return { previousMessages };
-        },
-        onError: (err, newTodo, context) => {
-            queryClient.setQueryData(["messages", roomId], context?.previousMessages);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ["messages", roomId] });
+                 let content = text;
+                 if (secretKey) {
+                    content = await encrypt(text, secretKey);
+                 }
+    
+                 queryClient.setQueryData(["messages", roomId], (old: any) => {
+                     const newMessage = {
+                         id: Math.random().toString(), // Temp ID
+                         sender: username,
+                         text: content,
+                         timeStamp: Date.now(),
+                         roomId: roomId,
+                         token: "optimistic" // specific marker if needed
+                     };
+                     
+                     return {
+                         ...old,
+                         messages: [...(old?.messages || []), newMessage]
+                     };
+                 });
+                 
+                 return { previousMessages };
+            },
+            onError: (err, newTodo, context: any) => {
+                queryClient.setQueryData(["messages", roomId], context?.previousMessages);
+            },
+            onSettled: () => {
+                queryClient.invalidateQueries({ queryKey: ["messages", roomId] });
+            }
+        })
+        const  copyLink = () => {
+            const url  = window.location.href;
+            navigator.clipboard.writeText(url)
+    
+            setCopyStatus("copied!")
+            setTimeout(() => {setCopyStatus("copy")}, 2000);
         }
-    })
-    const  copyLink = () => {
-        const url  = window.location.href;
-        navigator.clipboard.writeText(url)
-
-        setCopyStatus("copied!")
-        setTimeout(() => {setCopyStatus("copy")}, 2000);
-    }
-    return (<main className={"flex flex-col h-screen max-h-screen overflow-hidden"}>
-            <header className={"border-b border-zinc-800 p-4 flex items-center justify-between bg-zinc-900/30"}>
-                <div className={"flex items-center gap-4"}>
-                    <div className={"flex flex-col"}>
-                        <span className={"text-xs text-zinc-500 uppercase"}>
-                            Room ID
-                        </span>
-                        <div className={"flex items-center gap-2"}>
-                            <span className={"font-bold text-green-500"}>
-                                {roomId}
+        return (<main className={"flex flex-col h-screen max-h-screen overflow-hidden"}>
+                <header className={"border-b border-zinc-800 p-4 flex items-center justify-between bg-zinc-900/30"}>
+                    <div className={"flex items-center gap-4"}>
+                        <div className={"flex flex-col"}>
+                            <span className={"text-xs text-zinc-500 uppercase"}>
+                                Room ID
                             </span>
-                            <button onClick={()=>{
-                                copyLink()
-                            }
-                            } className={"text=[10px] bg-zinc-800 hover:bg-zinc-700 px-2 py-0.5 rounded text-zinc-400 hover:text-zinc-200 transition-colors"}>
-
-                                {copyStatus}
-                            </button>
+                            <div className={"flex items-center gap-2"}>
+                                <span className={"font-bold text-green-500"}>
+                                    {roomId}
+                                </span>
+                                <button onClick={()=>{
+                                    copyLink()
+                                }
+                                } className={"text=[10px] bg-zinc-800 hover:bg-zinc-700 px-2 py-0.5 rounded text-zinc-400 hover:text-zinc-200 transition-colors"}>
+    
+                                    {copyStatus}
+                                </button>
+                            </div>
+                        </div>
+    
+                        <div className={"h-8 w-px bg-zinc-800"}/>
+    
+                        <div className={"flex flex-col"}>
+                                <span className={"text-xs text-zinc-500 uppercase"}>
+                                    Self Destruct
+                                </span>
+                            <span className={`text-sm font-bold flex items-center gap-2${timeRemaining !== null && timeRemaining <= 60 ? " text-red-500" : " text-zinc-200"}`}>
+                                {timeRemaining !== null ? `${formatTimeRemaining(timeRemaining)}` : "--:--"}
+                            </span>
                         </div>
                     </div>
-
-                    <div className={"h-8 w-px bg-zinc-800"}/>
-
-                    <div className={"flex flex-col"}>
-                            <span className={"text-xs text-zinc-500 uppercase"}>
-                                Self Destruct
-                            </span>
-                        <span className={`text-sm font-bold flex items-center gap-2${timeRemaining !== null && timeRemaining <= 60 ? " text-red-500" : " text-zinc-200"}`}>
-                            {timeRemaining !== null ? `${formatTimeRemaining(timeRemaining)}` : "--:--"}
+                    <button onClick={()=>{
+                        destroyRoom()
+                    }} className={"text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50"}>
+                        <span className={"group-hover:animate-pulse"}>
+                            💣
                         </span>
-                    </div>
-                </div>
-                <button onClick={()=>{
-                    destroyRoom()
-                }} className={"text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50"}>
-                    <span className={"group-hover:animate-pulse"}>
-                        💣
-                    </span>
-                    DESTROY NOW
-                </button>
-            </header>
-            
-            <div className={"flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin flex flex-col"}>
-                 {/* No Messages */}
-                {messages?.messages.length === 0 && (
-                    <div className={"flex items-center justify-center flex-1"}>
-                        <p className={"text-zinc-600 text-sm font-mono"}>No messages yet. Start the conversation!</p>
-                    </div>
-                )}
-
-                {messages?.messages.map((msg)=>{
-                    return <div key={msg.id} className={"flex flex-col items-start"}>
+                        DESTROY NOW
+                    </button>
+                </header>
+                
+                <div className={"flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin flex flex-col"}>
+                     {/* Loading state */}
+                    {isLoading && (
+                        <div className={"flex items-center justify-center flex-1"}>
+                            <div className={"flex items-center gap-2 text-zinc-500 font-mono text-sm"}>
+                                <span className={"animate-spin"}>⚙️</span>
+                                Decrypting transmission...
+                            </div>
+                        </div>
+                    )}
+    
+                     {/* No Messages */}
+                    {!isLoading && messages?.messages.length === 0 && (
+                        <div className={"flex items-center justify-center flex-1"}>
+                            <p className={"text-zinc-600 text-sm font-mono"}>No messages yet. Start the conversation!</p>
+                        </div>
+                    )}
+    
+                    {!isLoading && messages?.messages.map((msg)=>{                    return <div key={msg.id} className={"flex flex-col items-start"}>
                         <div className={"max-w-[80%] group "}>
                             <div className={"flex items-baseline gap-3 mb-1"}>
                                 <span className={

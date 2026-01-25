@@ -22,7 +22,7 @@ export function Home() {
     const [capacity, setCapacity] = useState(2);
     const [password, setPassword] = useState("");
     
-    const {mutate: createRoom} = useMutation({
+    const {mutate: createRoom, isPending} = useMutation({
         mutationFn: async () => {
             // Create a new secure chat room
             const res = await client.api.room.create.post({
@@ -43,6 +43,7 @@ export function Home() {
 
     return (<main className={"flex min-h-screen flex-col items-center justify-center p-4"}>
           <div className={"w-full max-w-md space-y-8"}>
+              {/* ... existing error blocks ... */}
               {wasDestroyed && (<div className={"bg-red-950/50 border border-red-900 p-4 text-center"}>
                   <p className={"text-red-500 text-sm font-bold"}>Room destroyed</p>
                   <p className={"text-zinc-500 text-xs mt-1"}> All messages were permanently deleted</p>
@@ -84,6 +85,7 @@ export function Home() {
                               {[2, 3, 4].map((num) => (
                                   <button
                                       key={num}
+                                      disabled={isPending}
                                       onClick={() => setCapacity(num)}
                                       className={`p-3 text-sm font-bold border transition-all ${
                                           capacity === num
@@ -103,6 +105,7 @@ export function Home() {
                           </label>
                           <input 
                                 value={password}
+                                disabled={isPending}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Leave empty for open room"
                                 type="password"
@@ -110,8 +113,8 @@ export function Home() {
                           />
                       </div>
 
-                      <button onClick={()=>{createRoom()}} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
-                          Create SECURE ROOM
+                      <button onClick={()=>{createRoom()}} disabled={isPending} className={"w-full bg-zinc-100 text-black p-3 text-sm font-bold hover:bg-zinc-50 hover:text-black transition-colors mt-2 cursor-pointer disabled:opacity-50"}>
+                          {isPending ? "CREATING SECURE ROOM..." : "Create SECURE ROOM"}
                       </button>
                   </div>
               </div>
