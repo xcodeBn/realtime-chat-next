@@ -12,7 +12,7 @@ function getBaseUrl() {
     return 'http://localhost:3000';
 }
 
-function getHeaders() {
+function getHeaders(): Record<string, string> | undefined {
     if (typeof window !== 'undefined') {
         const url = localStorage.getItem("custom_redis_url");
         const token = localStorage.getItem("custom_redis_token");
@@ -23,11 +23,11 @@ function getHeaders() {
             };
         }
     }
-    return {};
+    return undefined;
 }
 
 export const client = treaty<App>(getBaseUrl(), {
-    headers: getHeaders()
+    headers: getHeaders
 })
 
 
