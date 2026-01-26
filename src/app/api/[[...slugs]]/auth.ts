@@ -1,5 +1,5 @@
 import {Elysia} from "elysia";
-import {redis} from "@/lib/redis";
+import {getRedis} from "@/lib/redis";
 
 class AuthError extends Error{
     constructor(message: string) {
@@ -21,7 +21,7 @@ export const authMiddleware = new Elysia({
     {
         as:"scoped"
     },
-    async ({query,cookie})=>{
+    async ({query,cookie, request})=>{
         const roomId = query.roomId;
         const token = cookie["x-auth-token"].value as string | undefined;
 
@@ -29,6 +29,7 @@ export const authMiddleware = new Elysia({
             throw new AuthError("Missing roomId or token");
         }
 
+        const redis = getRedis(request.headers);
         const connected = await redis.hget<string[]>(`meta:${roomId}`,"connected")
         if(!connected || !connected.includes(token)){
             throw new AuthError("Invalid token for the room");
