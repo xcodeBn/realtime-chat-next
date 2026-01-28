@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Realtime Chat Next
+
+Realtime Chat Next is a private, ephemeral chat application built with Next.js. It lets users create self-destructing chat rooms with client-side encryption and real-time message delivery.
+
+## Features
+
+- Create password-protected rooms with configurable participant limits.
+- End-to-end message encryption with keys generated in the browser and shared via the room URL hash.
+- Real-time message delivery and room events backed by Upstash Realtime and Redis.
+- Automatic room and message cleanup based on the configured time-to-live.
+- Optional custom Upstash Redis connection configured from the application UI.
+
+## Tech Stack
+
+- Next.js 16, React 19, TypeScript, Tailwind CSS
+- Elysia API routes
+- Upstash Redis and Upstash Realtime
+- TanStack Query and Zod
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and start the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The server uses the default `@upstash/redis` environment variables:
 
-## Learn More
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
-To learn more about Next.js, take a look at the following resources:
+You can also provide a custom Redis URL and token from the "Advanced: Use Custom Database" screen, which stores the values in local storage for the current browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` - start the development server
+- `npm run build` - build the production bundle
+- `npm start` - run the production server
+- `npm run lint` - run ESLint
